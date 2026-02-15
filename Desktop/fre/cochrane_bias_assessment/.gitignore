@@ -25,7 +25,7 @@ htmlcov/
 .mypy_cache/
 
 results/
-output/
+/output/
 *.xlsx
 !data/templates/*.xlsx
 
