@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ae4b55f5eb94e6f8d7c4d7a5c5a8c5f, type: 3}
+  m_Name: XRPluginManagement
+  m_EditorClassIdentifier: 
+  m_ManagerPackageDatas:
+  - m_PackageName: com.unity.xr.oculus
+    m_PackageVersion: 4.1.2
+    m_AssetStorePackage: 0
+    m_ValidatorAssembly: 
+    m_ValidatorClassName: 
+    m_Settings: {fileID: 0}
+  m_BuildTargetSettings:
+  - m_BuildTargetGroup: 7
+    m_Settings: {fileID: 0}
+  - m_BuildTargetGroup: 13
+    m_Settings: {fileID: 0}

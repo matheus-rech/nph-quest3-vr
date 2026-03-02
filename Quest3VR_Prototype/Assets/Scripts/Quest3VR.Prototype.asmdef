@@ -1,0 +1,19 @@
+{
+    "name": "Quest3VR.Prototype",
+    "rootNamespace": "Quest3VR.Prototype",
+    "references": [
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.XR.Oculus",
+        "Unity.XR.Management",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

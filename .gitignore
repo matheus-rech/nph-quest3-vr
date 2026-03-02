@@ -1,0 +1,49 @@
+# Unity generated
+Quest3VR_Prototype/[Ll]ibrary/
+Quest3VR_Prototype/[Tt]emp/
+Quest3VR_Prototype/[Oo]bj/
+Quest3VR_Prototype/[Bb]uild/
+Quest3VR_Prototype/[Bb]uilds/
+Quest3VR_Prototype/[Ll]ogs/
+Quest3VR_Prototype/[Uu]ser[Ss]ettings/
+Quest3VR_Prototype/[Mm]emoryCaptures/
+Quest3VR_Prototype/[Rr]ecordings/
+Quest3VR_Prototype/Assets/AssetStoreTools*
+
+# IDE
+.idea/
+.vs/
+.vscode/
+*.csproj
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Unity crashdump
+sysinfo.txt
+crashlytics-build.properties
+
+# Build output
+*.apk
+*.aab
+*.unitypackage
+*.ipa
+
+# Logs
+build-quest3.log
+*.log
