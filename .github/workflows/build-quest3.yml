@@ -2,14 +2,9 @@ name: Build Quest 3 APK
 
 on:
   push:
-    branches: [feature/nph-yolo-system, master]
-    paths:
-      - 'Quest3VR_Prototype/**'
-      - '.github/workflows/build-quest3.yml'
+    branches: [main, feature/nph-yolo-system]
   pull_request:
-    branches: [master]
-    paths:
-      - 'Quest3VR_Prototype/**'
+    branches: [main]
   workflow_dispatch:
     inputs:
       api_url:
