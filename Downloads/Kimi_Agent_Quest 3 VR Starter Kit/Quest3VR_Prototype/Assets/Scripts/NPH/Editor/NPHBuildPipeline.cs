@@ -356,23 +356,30 @@ namespace Quest3VR.NPH.Editor
 
             try
             {
-                Debug.Log("\n── Step 1/4: Import Textures ──────────────────");
+                Debug.Log("\n── Step 1/5: Import Textures ──────────────────");
                 ImportTextures();
 
-                Debug.Log("\n── Step 2/4: Build & Configure Scene ──────────");
+                Debug.Log("\n── Step 2/5: Build & Configure Scene ──────────");
                 BuildAndConfigureScene();
 
-                Debug.Log("\n── Step 3/4: Configure Quest 3 Build ──────────");
+                Debug.Log("\n── Step 3/5: Validate Scene ───────────────────");
+                bool valid = NPHSceneValidator.ValidateScene();
+                if (!valid && HasFlag("-strictValidation"))
+                {
+                    throw new Exception("Scene validation failed. Use -strictValidation=false to ignore.");
+                }
+
+                Debug.Log("\n── Step 4/5: Configure Quest 3 Build ──────────");
                 ConfigureQuest3Build();
 
                 if (!HasFlag("-skipBuild"))
                 {
-                    Debug.Log("\n── Step 4/4: Build APK ────────────────────────");
+                    Debug.Log("\n── Step 5/5: Build APK ────────────────────────");
                     BuildAPK();
                 }
                 else
                 {
-                    Debug.Log("\n── Step 4/4: SKIPPED (-skipBuild flag) ────────");
+                    Debug.Log("\n── Step 5/5: SKIPPED (-skipBuild flag) ────────");
                 }
 
                 var elapsed = DateTime.Now - startTime;

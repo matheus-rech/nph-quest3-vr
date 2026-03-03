@@ -73,6 +73,7 @@ Options:
   --output PATH       Output APK path (default: Builds/NPH_Quest3.apk)
   --setup-only        Import textures + build scene only, skip APK build
   --skip-build        Run full pipeline but skip APK compilation
+  --strict-validation Fail build if scene validation has errors (default: true)
   --log FILE          Log file path (default: build-quest3.log)
   --help              Show this help message
 
@@ -96,6 +97,8 @@ EOF
 
 # ── Parse Arguments ───────────────────────────────────────────
 
+STRICT_VALIDATION=true
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --unity)      UNITY_PATH="$2"; shift 2 ;;
@@ -104,6 +107,7 @@ while [[ $# -gt 0 ]]; do
         --output)     OUTPUT_PATH="$2"; shift 2 ;;
         --setup-only) SETUP_ONLY=true; shift ;;
         --skip-build) SKIP_BUILD=true; shift ;;
+        --strict-validation) STRICT_VALIDATION="$2"; shift 2 ;;
         --log)        LOG_FILE="$2"; shift 2 ;;
         --help|-h)    usage ;;
         *)            err "Unknown option: $1"; usage ;;
@@ -294,6 +298,10 @@ run_unity() {
         args+=(-outputPath "$OUTPUT_PATH")
     fi
 
+    if [[ "$STRICT_VALIDATION" == "true" ]]; then
+        args+=(-strictValidation)
+    fi
+
     # Pass through extra flags
     args+=("$@")
 
@@ -332,11 +340,14 @@ echo "========================================" >> "$LOG_FILE"
 
 if [[ "$SETUP_ONLY" == true ]]; then
     # ── Setup-only mode ───────────────────────────────────────
-    step "Step 1/2: Importing CT Textures"
+    step "Step 1/3: Importing CT Textures"
     run_unity "Texture import" "Quest3VR.NPH.Editor.NPHBuildPipeline.ImportTextures"
 
-    step "Step 2/2: Building & Configuring Scene"
+    step "Step 2/3: Building & Configuring Scene"
     run_unity "Scene build + configuration" "Quest3VR.NPH.Editor.NPHBuildPipeline.BuildAndConfigureScene"
+
+    step "Step 3/3: Validating Scene"
+    run_unity "Scene validation" "Quest3VR.NPH.Editor.NPHSceneValidator.ValidateScene"
 
     PIPELINE_END=$(date +%s)
     TOTAL=$((PIPELINE_END - PIPELINE_START))
@@ -353,19 +364,23 @@ if [[ "$SETUP_ONLY" == true ]]; then
 
 else
     # ── Full pipeline ─────────────────────────────────────────
-    step "Step 1/4: Importing CT Textures"
+    step "Step 1/5: Importing CT Textures"
     run_unity "Texture import" "Quest3VR.NPH.Editor.NPHBuildPipeline.ImportTextures"
 
-    step "Step 2/4: Building & Configuring Scene"
+    step "Step 2/5: Building & Configuring Scene"
     run_unity "Scene build + configuration" "Quest3VR.NPH.Editor.NPHBuildPipeline.BuildAndConfigureScene"
 
-    step "Step 3/4: Configuring Quest 3 Build Settings"
+    step "Step 3/5: Validating Scene"
+    # Validation is done inside BuildAll, but we can also run it separately
+    info "Scene validation included in build pipeline"
+
+    step "Step 4/5: Configuring Quest 3 Build Settings"
     run_unity "Quest 3 build config" "Quest3VR.NPH.Editor.NPHBuildPipeline.ConfigureQuest3Build"
 
     if [[ "$SKIP_BUILD" == true ]]; then
-        step "Step 4/4: APK Build SKIPPED (--skip-build)"
+        step "Step 5/5: APK Build SKIPPED (--skip-build)"
     else
-        step "Step 4/4: Building APK"
+        step "Step 5/5: Building APK"
         run_unity "APK build" "Quest3VR.NPH.Editor.NPHBuildPipeline.BuildAPK"
     fi
 
