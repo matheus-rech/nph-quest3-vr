@@ -19,6 +19,7 @@ on:
 
 env:
   UNITY_VERSION: 2022.3.20f1
+  UNITY_IMAGE: unityci/editor:ubuntu-2022.3.20f1-android-3
   PROJECT_PATH: Quest3VR_Prototype
   BUILD_TARGET: Android
   NPH_API_URL: ${{ github.event.inputs.api_url || 'http://192.168.1.100:8000' }}
@@ -45,37 +46,114 @@ jobs:
             unity-library-${{ env.UNITY_VERSION }}-${{ env.BUILD_TARGET }}-
             unity-library-${{ env.UNITY_VERSION }}-
 
-      - name: Setup NPH Scene
-        uses: game-ci/unity-builder@v4
+      - name: Pull Unity image
+        run: docker pull "$UNITY_IMAGE"
+
+      - name: Prepare Unity config
         env:
+          SA_KEY_ID: ${{ secrets.UNITY_SA_KEY_ID }}
+          SA_SECRET: ${{ secrets.UNITY_SA_SECRET }}
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          unityVersion: ${{ env.UNITY_VERSION }}
-          projectPath: ${{ env.PROJECT_PATH }}
-          targetPlatform: Android
-          buildMethod: Quest3VR.NPH.Editor.NPHBuildPipeline.SetupOnly
-          customParameters: -apiUrl ${{ env.NPH_API_URL }}
+        run: |
+          # Write services-config.json for service account licensing
+          mkdir -p /tmp/unity-config
+          python3 -c "
+          import json, os
+          config = {
+            'enableEntitlementLicensing': True,
+            'licensingServiceBaseUrl': 'https://core.cloud.unity3d.com',
+            'clientId': os.environ['SA_KEY_ID'],
+            'clientSecret': os.environ['SA_SECRET']
+          }
+          with open('/tmp/unity-config/services-config.json', 'w') as f:
+            json.dump(config, f, indent=2)
+          "
+
+          # Also write UNITY_LICENSE if available (fallback)
+          if [ -n "$UNITY_LICENSE" ]; then
+            mkdir -p /tmp/unity-license
+            printf '%s' "$UNITY_LICENSE" > /tmp/unity-license/Unity_lic.ulf
+          fi
+
+      - name: Setup NPH Scene
+        env:
+          API_URL: ${{ env.NPH_API_URL }}
+        run: |
+          docker create --name unity-setup \
+            -w /github/workspace \
+            "$UNITY_IMAGE" \
+            unity-editor \
+              -batchmode \
+              -nographics \
+              -projectPath "/github/workspace/$PROJECT_PATH" \
+              -buildTarget Android \
+              -executeMethod Quest3VR.NPH.Editor.NPHBuildPipeline.SetupOnly \
+              -logFile /dev/stdout \
+              -quit
+
+          # Inject service account config
+          docker cp /tmp/unity-config/services-config.json \
+            unity-setup:/usr/share/unity3d/config/services-config.json
+
+          # Inject ULF license if available
+          if [ -f /tmp/unity-license/Unity_lic.ulf ]; then
+            docker cp /tmp/unity-license/Unity_lic.ulf \
+              unity-setup:/root/.local/share/unity3d/Unity/Unity_lic.ulf 2>/dev/null || true
+          fi
+
+          # Copy workspace into container
+          docker cp "$GITHUB_WORKSPACE/." unity-setup:/github/workspace/
+
+          docker start -a unity-setup
+          EXIT_CODE=$?
+
+          # Copy back any changes to workspace
+          docker cp "unity-setup:/github/workspace/$PROJECT_PATH/." \
+            "$GITHUB_WORKSPACE/$PROJECT_PATH/"
+
+          docker rm unity-setup
+          exit $EXIT_CODE
 
       - name: Build APK
         if: ${{ github.event.inputs.skip_build != 'true' }}
-        uses: game-ci/unity-builder@v4
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          unityVersion: ${{ env.UNITY_VERSION }}
-          projectPath: ${{ env.PROJECT_PATH }}
-          targetPlatform: Android
-          buildMethod: Quest3VR.NPH.Editor.NPHBuildPipeline.BuildAll
-          customParameters: -apiUrl ${{ env.NPH_API_URL }} -outputPath /github/workspace/build/NPH_Quest3.apk
-          androidKeystoreName: ''
-          androidKeystoreBase64: ''
-          androidKeystorePass: ''
-          androidKeyaliasName: ''
-          androidKeyaliasPass: ''
+          API_URL: ${{ env.NPH_API_URL }}
+        run: |
+          mkdir -p build
+
+          docker create --name unity-build \
+            -w /github/workspace \
+            "$UNITY_IMAGE" \
+            unity-editor \
+              -batchmode \
+              -nographics \
+              -projectPath "/github/workspace/$PROJECT_PATH" \
+              -buildTarget Android \
+              -executeMethod Quest3VR.NPH.Editor.NPHBuildPipeline.BuildAll \
+              -logFile /dev/stdout \
+              -quit
+
+          # Inject service account config
+          docker cp /tmp/unity-config/services-config.json \
+            unity-build:/usr/share/unity3d/config/services-config.json
+
+          # Inject ULF license if available
+          if [ -f /tmp/unity-license/Unity_lic.ulf ]; then
+            docker cp /tmp/unity-license/Unity_lic.ulf \
+              unity-build:/root/.local/share/unity3d/Unity/Unity_lic.ulf 2>/dev/null || true
+          fi
+
+          # Copy workspace into container
+          docker cp "$GITHUB_WORKSPACE/." unity-build:/github/workspace/
+
+          docker start -a unity-build
+          EXIT_CODE=$?
+
+          # Extract APK
+          docker cp unity-build:/github/workspace/build/. build/ 2>/dev/null || true
+
+          docker rm unity-build
+          exit $EXIT_CODE
 
       - name: Upload APK artifact
         if: ${{ github.event.inputs.skip_build != 'true' }}

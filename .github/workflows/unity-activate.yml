@@ -4,73 +4,84 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  request-alf:
-    name: Generate activation file (.alf)
+  activate-service-account:
+    name: Activate via service account
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Generate .alf file
+      - name: Activate Unity and extract license
         run: |
-          docker create --name unity-alf \
+          # Create services-config.json for Unity's licensing client
+          mkdir -p /tmp/unity-config
+          cat > /tmp/unity-config/services-config.json << EOF
+          {
+            "enableEntitlementLicensing": true,
+            "licensingServiceBaseUrl": "https://core.cloud.unity3d.com",
+            "clientId": "${{ secrets.UNITY_SA_KEY_ID }}",
+            "clientSecret": "${{ secrets.UNITY_SA_SECRET }}"
+          }
+          EOF
+
+          # Create container (don't start yet)
+          docker create --name unity-activate \
             unityci/editor:ubuntu-2022.3.20f1-android-3 \
             unity-editor \
               -batchmode \
               -nographics \
-              -createManualActivationFile \
-              -logFile /dev/stdout
-          docker start -a unity-alf || true
-          docker cp unity-alf:/Unity_v2022.3.20f1.alf . 2>/dev/null || true
-          docker rm unity-alf
+              -logFile /dev/stdout \
+              -quit
 
-          if [ ! -f Unity_v2022.3.20f1.alf ]; then
-            echo "::error::No .alf file found. Unity may have written it to a different path."
-            exit 1
+          # Inject services config into the container
+          docker cp /tmp/unity-config/services-config.json \
+            unity-activate:/usr/share/unity3d/config/services-config.json
+
+          # Run activation
+          docker start -a unity-activate || true
+
+          # Extract all possible license files
+          mkdir -p /tmp/licenses
+          docker cp unity-activate:/root/.local/share/unity3d/Unity/Unity_lic.ulf /tmp/licenses/ 2>/dev/null || true
+          docker cp unity-activate:/Unity_lic.ulf /tmp/licenses/ 2>/dev/null || true
+
+          # Also check for entitlement licenses
+          docker cp unity-activate:/root/.config/unity3d/ /tmp/licenses/config/ 2>/dev/null || true
+
+          # List what we found
+          echo "=== License files found ==="
+          find /tmp/licenses -type f 2>/dev/null
+          echo "==========================="
+
+          docker rm unity-activate
+
+          # Check if we got a usable license
+          if [ -f /tmp/licenses/Unity_lic.ulf ]; then
+            echo "ULF license extracted successfully"
+            cp /tmp/licenses/Unity_lic.ulf ./Unity_lic.ulf
+          else
+            echo "::warning::No .ulf found. Checking for entitlement files..."
+            # Copy any found files for the artifact
+            find /tmp/licenses -type f -exec cp {} . \; 2>/dev/null || true
           fi
-          echo "Generated: Unity_v2022.3.20f1.alf"
 
-      - name: Upload .alf artifact
+      - name: Upload license artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Unity-Activation-File
-          path: "*.alf"
+          name: Unity-License-Files
+          path: |
+            Unity_lic.ulf
+            *.xml
           retention-days: 1
-          if-no-files-found: error
+          if-no-files-found: warn
 
-      - name: Next steps
+      - name: Summary
         run: |
-          echo "## Unity License Activation — Next Steps" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Unity License Activation Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "1. **Download** the \`Unity-Activation-File\` artifact from this run" >> "$GITHUB_STEP_SUMMARY"
-          echo "2. **Go to** [license.unity3d.com/manual](https://license.unity3d.com/manual)" >> "$GITHUB_STEP_SUMMARY"
-          echo "3. **Upload** the \`.alf\` file and follow the prompts" >> "$GITHUB_STEP_SUMMARY"
-          echo "4. **Download** the \`.ulf\` file Unity gives you" >> "$GITHUB_STEP_SUMMARY"
-          echo "5. **Set secrets** by running:" >> "$GITHUB_STEP_SUMMARY"
-          echo '   ```bash' >> "$GITHUB_STEP_SUMMARY"
-          echo '   ./scripts/set-unity-secrets.sh path/to/Unity_lic.ulf' >> "$GITHUB_STEP_SUMMARY"
-          echo '   ```' >> "$GITHUB_STEP_SUMMARY"
-          echo "6. **Trigger build** with:" >> "$GITHUB_STEP_SUMMARY"
-          echo '   ```bash' >> "$GITHUB_STEP_SUMMARY"
-          echo '   gh workflow run build-quest3.yml' >> "$GITHUB_STEP_SUMMARY"
-          echo '   ```' >> "$GITHUB_STEP_SUMMARY"
-
-  verify:
-    name: Verify license (after secrets are set)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: ${{ false }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Test Unity activation
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          unityVersion: 2022.3.20f1
-          projectPath: Quest3VR_Prototype
-          targetPlatform: Android
-          buildMethod: ''
-          customParameters: -quit -batchmode -nographics
+          if [ -f Unity_lic.ulf ]; then
+            echo "License file generated. Download the artifact and run:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+            echo 'gh secret set UNITY_LICENSE < Unity_lic.ulf' >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No .ulf generated. Check the logs for licensing errors." >> "$GITHUB_STEP_SUMMARY"
+          fi
