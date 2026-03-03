@@ -76,11 +76,11 @@ jobs:
           fi
 
       - name: Setup NPH Scene
-        env:
-          API_URL: ${{ env.NPH_API_URL }}
         run: |
-          docker create --name unity-setup \
+          docker run --rm \
             -w /github/workspace \
+            -v "$GITHUB_WORKSPACE:/github/workspace" \
+            -v "/tmp/unity-config/services-config.json:/usr/share/unity3d/config/services-config.json" \
             "$UNITY_IMAGE" \
             unity-editor \
               -batchmode \
@@ -91,38 +91,15 @@ jobs:
               -logFile /dev/stdout \
               -quit
 
-          # Inject service account config
-          docker cp /tmp/unity-config/services-config.json \
-            unity-setup:/usr/share/unity3d/config/services-config.json
-
-          # Inject ULF license if available
-          if [ -f /tmp/unity-license/Unity_lic.ulf ]; then
-            docker cp /tmp/unity-license/Unity_lic.ulf \
-              unity-setup:/root/.local/share/unity3d/Unity/Unity_lic.ulf 2>/dev/null || true
-          fi
-
-          # Copy workspace into container
-          docker cp "$GITHUB_WORKSPACE/." unity-setup:/github/workspace/
-
-          docker start -a unity-setup
-          EXIT_CODE=$?
-
-          # Copy back any changes to workspace
-          docker cp "unity-setup:/github/workspace/$PROJECT_PATH/." \
-            "$GITHUB_WORKSPACE/$PROJECT_PATH/"
-
-          docker rm unity-setup
-          exit $EXIT_CODE
-
       - name: Build APK
         if: ${{ github.event.inputs.skip_build != 'true' }}
-        env:
-          API_URL: ${{ env.NPH_API_URL }}
         run: |
           mkdir -p build
 
-          docker create --name unity-build \
+          docker run --rm \
             -w /github/workspace \
+            -v "$GITHUB_WORKSPACE:/github/workspace" \
+            -v "/tmp/unity-config/services-config.json:/usr/share/unity3d/config/services-config.json" \
             "$UNITY_IMAGE" \
             unity-editor \
               -batchmode \
@@ -132,28 +109,6 @@ jobs:
               -executeMethod Quest3VR.NPH.Editor.NPHBuildPipeline.BuildAll \
               -logFile /dev/stdout \
               -quit
-
-          # Inject service account config
-          docker cp /tmp/unity-config/services-config.json \
-            unity-build:/usr/share/unity3d/config/services-config.json
-
-          # Inject ULF license if available
-          if [ -f /tmp/unity-license/Unity_lic.ulf ]; then
-            docker cp /tmp/unity-license/Unity_lic.ulf \
-              unity-build:/root/.local/share/unity3d/Unity/Unity_lic.ulf 2>/dev/null || true
-          fi
-
-          # Copy workspace into container
-          docker cp "$GITHUB_WORKSPACE/." unity-build:/github/workspace/
-
-          docker start -a unity-build
-          EXIT_CODE=$?
-
-          # Extract APK
-          docker cp unity-build:/github/workspace/build/. build/ 2>/dev/null || true
-
-          docker rm unity-build
-          exit $EXIT_CODE
 
       - name: Upload APK artifact
         if: ${{ github.event.inputs.skip_build != 'true' }}
