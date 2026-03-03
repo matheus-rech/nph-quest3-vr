@@ -11,22 +11,22 @@ jobs:
     steps:
       - name: Generate .alf file
         run: |
-          docker run --rm \
-            -v "$PWD:/output" \
+          docker create --name unity-alf \
             unityci/editor:ubuntu-2022.3.20f1-android-3 \
             unity-editor \
               -batchmode \
               -nographics \
               -createManualActivationFile \
-              -logFile /dev/stdout || true
+              -logFile /dev/stdout
+          docker start -a unity-alf || true
+          docker cp unity-alf:/Unity_v2022.3.20f1.alf . 2>/dev/null || true
+          docker rm unity-alf
 
-          ALF_FILE=$(ls *.alf 2>/dev/null || ls /output/*.alf 2>/dev/null || true)
-          if [ -z "$ALF_FILE" ]; then
-            echo "::error::No .alf file generated. Check Unity version compatibility."
-            find . -name "*.alf" -o -name "Unity_v*" 2>/dev/null
+          if [ ! -f Unity_v2022.3.20f1.alf ]; then
+            echo "::error::No .alf file found. Unity may have written it to a different path."
             exit 1
           fi
-          echo "Generated: $ALF_FILE"
+          echo "Generated: Unity_v2022.3.20f1.alf"
 
       - name: Upload .alf artifact
         uses: actions/upload-artifact@v4
