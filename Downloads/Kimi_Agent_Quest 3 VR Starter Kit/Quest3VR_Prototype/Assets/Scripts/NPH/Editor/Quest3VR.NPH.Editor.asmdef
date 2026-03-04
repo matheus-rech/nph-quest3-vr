@@ -1,0 +1,20 @@
+{
+    "name": "Quest3VR.NPH.Editor",
+    "rootNamespace": "Quest3VR.NPH.Editor",
+    "references": [
+        "Quest3VR.NPH",
+        "Quest3VR.Prototype",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

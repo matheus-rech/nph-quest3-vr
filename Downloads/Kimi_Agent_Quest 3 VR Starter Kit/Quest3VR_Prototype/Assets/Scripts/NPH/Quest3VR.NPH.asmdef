@@ -1,0 +1,19 @@
+{
+    "name": "Quest3VR.NPH",
+    "rootNamespace": "Quest3VR.NPH",
+    "references": [
+        "Quest3VR.Prototype",
+        "Unity.TextMeshPro",
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
