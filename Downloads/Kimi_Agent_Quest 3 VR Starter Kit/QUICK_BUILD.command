@@ -1,0 +1,13 @@
+#!/bin/bash
+cd "$(dirname "$0")"
+echo "🎮 Opening Quest 3 VR in Unity..."
+echo ""
+echo "AFTER UNITY OPENS:"
+echo "1. Click 'Tools' → 'NPH' → 'Setup Only'"
+echo "2. Double-click 'Assets/Scenes/VRStarterScene.unity'"
+echo "3. Click 'File' → 'Build Settings'"
+echo "4. Select 'Android', click 'Switch Platform'"
+echo "5. Click 'Build', save as 'NPH_Quest3.apk'"
+echo ""
+open -a "Unity Hub"
+open "Quest3VR_Prototype"
